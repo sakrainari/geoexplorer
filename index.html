@@ -516,8 +516,9 @@
     <div class="spacer"></div>
     <button type="button" class="btn-ghost btn" id="btnPreview">プレビュー切替</button>
     <button type="button" class="btn-ghost btn" id="btnCopy">JSONコピー</button>
-    <button type="button" class="btn btn-blue" id="btnTsv">TSVコピー</button>
-    <button type="button" class="btn" id="btnSave">保存（一時）</button>
+    <button type="button" class="btn-ghost btn" id="btnTsv">TSVコピー</button>
+    <button type="button" class="btn-ghost btn" id="btnSave">保存（一時）</button>
+    <button type="button" class="btn" id="btnSubmit">＋ シートに追加</button>
   </div>
 </div>
 
@@ -525,6 +526,14 @@
 
 <script>
 "use strict";
+
+/* ===================================================================
+ * GAS接続設定
+ * デプロイした「ウェブアプリ」のURLを下の "" の中に貼り付けてください。
+ * 例: const GAS_ENDPOINT = "https://script.google.com/macros/s/XXXXXXXX/exec";
+ * 空のままだと「シートに追加」ボタンは設定方法を案内します。
+ * =================================================================== */
+const GAS_ENDPOINT = "";
 
 /* ========= 定義データ ========= */
 const TAGS = [
@@ -731,6 +740,53 @@ document.getElementById("btnTsv").addEventListener("click", () => {
 
   const text = "【スポットマスター行】\n" + masterRow + "\n\n【解説シート行】\n" + descRow;
   copyText(text, "TSV（タブ区切り）");
+});
+
+/* ========= シートに追加（GAS送信） ========= */
+const btnSubmit = document.getElementById("btnSubmit");
+btnSubmit.addEventListener("click", async () => {
+  // エンドポイント未設定
+  if(!GAS_ENDPOINT){
+    toast("GAS未設定：index.html の GAS_ENDPOINT にデプロイURLを設定してください");
+    return;
+  }
+  // 最低限の入力チェック
+  const d = collect();
+  if(!d.nameJa){
+    toast("スポット名（日本語）を入力してください");
+    form.elements["nameJa"].focus();
+    return;
+  }
+
+  const payload = structured();
+  const label = btnSubmit.textContent;
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = "送信中…";
+
+  try{
+    // text/plain にすることでプリフライト(OPTIONS)を避ける（GASのCORS対策）
+    const res = await fetch(GAS_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if(result && result.ok){
+      // 採番されたIDを反映
+      if(result.id) form.elements["id"].value = result.id;
+      updateBadge();
+      if(previewWrap.classList.contains("show")) refreshPreview();
+      toast("✓ シートに追加しました（ID: " + (result.id || "") + "）");
+      localStorage.removeItem(LS_KEY); // 送信成功したら一時保存をクリア
+    } else {
+      toast("✕ 追加に失敗：" + (result && result.error ? result.error : "不明なエラー"));
+    }
+  }catch(err){
+    toast("✕ 送信エラー：" + err.message + "（URL・デプロイ設定をご確認ください）");
+  }finally{
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = label;
+  }
 });
 
 /* ========= 一時保存（localStorage） ========= */
