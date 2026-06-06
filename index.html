@@ -105,6 +105,11 @@
   label{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.3px;}
   label .req{color:var(--accent);margin-left:4px;}
   label .col{color:#5b6675;font-weight:500;margin-left:6px;font-size:11px;}
+  label .auto-note{
+    margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px;
+    color:var(--accent-blue);background:rgba(74,168,255,.12);
+    border:1px solid rgba(74,168,255,.35);padding:1px 7px;border-radius:10px;
+  }
 
   input[type=text],input[type=url],input[type=date],input[type=number],select,textarea{
     width:100%;
@@ -260,8 +265,8 @@
         <p class="divider-label">識別情報</p>
         <div class="grid-3">
           <div class="field">
-            <label>ID <span class="col">A</span></label>
-            <input type="text" name="id" placeholder="例：SPOT-0001">
+            <label>ID <span class="col">A</span> <span class="auto-note">GAS接続後に自動採番</span></label>
+            <input type="text" name="id" placeholder="空欄でOK（手動入力も可）">
           </div>
           <div class="field">
             <label>グループID <span class="col">B</span></label>
@@ -769,7 +774,7 @@ document.getElementById("btnReset").addEventListener("click", () => {
 /* ========= サンプル入力 ========= */
 document.getElementById("btnSample").addEventListener("click", () => {
   const set = (n,v)=>{ if(form.elements[n]) form.elements[n].value=v; };
-  set("id","SPOT-0001"); set("groupId","GRP-PARIS"); set("continent","ヨーロッパ");
+  set("id",""); set("groupId","GRP-PARIS"); set("continent","ヨーロッパ");  // IDはGAS接続後に自動採番のため空欄
   set("country","フランス"); set("city","パリ"); set("nameJa","エッフェル塔");
   set("nameEn","Eiffel Tower"); set("svType","通常ストリートビュー");
   set("lat","48.8584"); set("lng","2.2945");
