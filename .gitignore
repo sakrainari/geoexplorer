@@ -1,0 +1,9 @@
+# 開発・プレビュー用ローカル設定（公開不要）
+.claude/
+
+# OS / エディタ
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.vscode/

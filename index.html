@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoExplorer — 入力ツール</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --bg2:#11161d;
+    --panel:#161c26;
+    --panel2:#1b2330;
+    --border:#26303d;
+    --border-glow:#3a4a5f;
+    --text:#e6edf3;
+    --muted:#8b98a8;
+    --accent:#5ee0a0;       /* GeoGuessr系のグリーン */
+    --accent2:#3fb27f;
+    --accent-blue:#4aa8ff;
+    --danger:#ff6b6b;
+    --gold:#f1c453;
+    --radius:10px;
+    --shadow:0 6px 24px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(94,224,160,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(74,168,255,.10), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    min-height:100vh;
+  }
+
+  /* ===== ヘッダー ===== */
+  header{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(8px);
+    background:rgba(13,17,23,.82);
+    border-bottom:1px solid var(--border);
+  }
+  .header-inner{
+    max-width:1100px;margin:0 auto;
+    padding:14px 20px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .logo{
+    font-size:22px;font-weight:800;letter-spacing:.5px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .logo .globe{
+    width:30px;height:30px;border-radius:50%;
+    background:conic-gradient(from 220deg,var(--accent),var(--accent-blue),var(--accent));
+    box-shadow:0 0 14px rgba(94,224,160,.55);
+    display:inline-block;position:relative;
+  }
+  .logo .globe::after{
+    content:"";position:absolute;inset:5px;border-radius:50%;
+    border:2px solid rgba(13,17,23,.55);
+  }
+  .logo small{display:block;font-size:11px;color:var(--muted);font-weight:500;letter-spacing:2px;}
+  .header-actions{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;}
+
+  /* ===== レイアウト ===== */
+  main{max-width:1100px;margin:0 auto;padding:24px 20px 120px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  .full{grid-column:1 / -1;}
+  @media(max-width:760px){
+    .grid,.grid-3{grid-template-columns:1fr;}
+  }
+
+  /* ===== セクションカード ===== */
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    margin-bottom:20px;
+    overflow:hidden;
+  }
+  .card-head{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 18px;
+    background:linear-gradient(90deg,rgba(94,224,160,.10),transparent);
+    border-bottom:1px solid var(--border);
+  }
+  .card-head .num{
+    width:26px;height:26px;border-radius:7px;
+    background:var(--accent);color:#06281b;
+    font-weight:800;font-size:14px;
+    display:grid;place-items:center;
+    box-shadow:0 0 10px rgba(94,224,160,.4);
+  }
+  .card-head h2{margin:0;font-size:16px;letter-spacing:.5px;}
+  .card-head .hint{margin-left:auto;font-size:12px;color:var(--muted);}
+  .card-body{padding:18px;}
+
+  /* ===== フォーム要素 ===== */
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  label{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.3px;}
+  label .req{color:var(--accent);margin-left:4px;}
+  label .col{color:#5b6675;font-weight:500;margin-left:6px;font-size:11px;}
+
+  input[type=text],input[type=url],input[type=date],input[type=number],select,textarea{
+    width:100%;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  input::placeholder,textarea::placeholder{color:#586375;}
+  input:focus,select:focus,textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(94,224,160,.16);
+    background:#1e2735;
+  }
+  textarea{resize:vertical;min-height:80px;line-height:1.55;}
+  textarea.lg{min-height:120px;}
+  select{appearance:none;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%238b98a8' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+
+  /* ===== 緯度経度 解析パネル ===== */
+  .map-parse{
+    background:linear-gradient(135deg,rgba(74,168,255,.08),rgba(94,224,160,.06));
+    border:1px dashed var(--border-glow);
+    border-radius:10px;padding:14px;margin-bottom:14px;
+  }
+  .map-parse .row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;}
+  .map-parse input{flex:1;min-width:220px;}
+  .parse-status{font-size:12px;margin-top:8px;min-height:16px;}
+  .parse-status.ok{color:var(--accent);}
+  .parse-status.err{color:var(--danger);}
+  .latlng-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+  @media(max-width:760px){.latlng-row{grid-template-columns:1fr;}}
+
+  /* ===== ボタン ===== */
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-weight:700;letter-spacing:.3px;transition:transform .08s, filter .15s, box-shadow .15s;}
+  button:active{transform:translateY(1px);}
+  .btn{
+    padding:10px 18px;font-size:14px;
+    background:var(--accent);color:#06281b;
+    box-shadow:0 0 14px rgba(94,224,160,.35);
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn-blue{background:var(--accent-blue);color:#04203f;box-shadow:0 0 14px rgba(74,168,255,.35);}
+  .btn-ghost{
+    background:transparent;color:var(--text);
+    border:1px solid var(--border-glow);box-shadow:none;
+  }
+  .btn-ghost:hover{background:var(--panel2);}
+  .btn-sm{padding:8px 14px;font-size:13px;}
+
+  /* ===== チェックボックス（タグ・基準） ===== */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{position:relative;}
+  .chip input{position:absolute;opacity:0;width:0;height:0;}
+  .chip label{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 13px;border-radius:20px;cursor:pointer;
+    background:var(--panel2);border:1px solid var(--border);
+    color:var(--text);font-size:13px;font-weight:600;
+    user-select:none;transition:all .12s;
+  }
+  .chip label:hover{border-color:var(--border-glow);}
+  .chip input:checked + label{
+    background:var(--accent);color:#06281b;border-color:var(--accent);
+    box-shadow:0 0 10px rgba(94,224,160,.4);
+  }
+  /* 世界遺産登録基準は金色テーマ */
+  .chips.criteria .chip input:checked + label{
+    background:var(--gold);color:#3a2a00;border-color:var(--gold);
+    box-shadow:0 0 10px rgba(241,196,83,.4);
+  }
+  .chips.criteria label{min-width:42px;justify-content:center;text-transform:none;font-weight:700;}
+  .crit-desc{font-size:11px;color:var(--muted);font-weight:500;}
+
+  /* ===== フッターバー（保存・出力） ===== */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;
+    background:rgba(13,17,23,.92);backdrop-filter:blur(8px);
+    border-top:1px solid var(--border);
+    padding:12px 20px;
+  }
+  .actionbar-inner{
+    max-width:1100px;margin:0 auto;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .actionbar .spacer{flex:1;}
+  .toast{
+    position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel);border:1px solid var(--accent);
+    color:var(--text);padding:12px 22px;border-radius:30px;
+    box-shadow:var(--shadow);font-size:14px;font-weight:600;
+    opacity:0;pointer-events:none;transition:all .3s;z-index:100;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ===== JSONプレビュー ===== */
+  .preview-wrap{display:none;}
+  .preview-wrap.show{display:block;}
+  pre.preview{
+    background:#0a0e14;border:1px solid var(--border);
+    border-radius:8px;padding:16px;overflow:auto;max-height:420px;
+    font-family:"Cascadia Code","Consolas",monospace;font-size:12.5px;
+    color:#c9d6e3;white-space:pre-wrap;word-break:break-word;
+  }
+  .badge{
+    display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--border);color:var(--muted);
+  }
+  .section-note{font-size:12px;color:var(--muted);margin:0 0 14px;}
+  .divider-label{
+    font-size:12px;color:var(--accent);font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;margin:0 0 12px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .divider-label::after{content:"";flex:1;height:1px;background:var(--border);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="globe"></span>
+      <span>GeoExplorer
+        <small>SPOT INPUT TOOL</small>
+      </span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost btn btn-sm" id="btnSample">サンプル入力</button>
+      <button class="btn-ghost btn btn-sm" id="btnReset">クリア</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <form id="spotForm" autocomplete="off">
+
+    <!-- ============ スポットマスター ============ -->
+    <div class="card">
+      <div class="card-head">
+        <span class="num">1</span>
+        <h2>スポットマスター</h2>
+        <span class="hint">基本情報・位置・分類</span>
+      </div>
+      <div class="card-body">
+
+        <p class="divider-label">識別情報</p>
+        <div class="grid-3">
+          <div class="field">
+            <label>ID <span class="col">A</span></label>
+            <input type="text" name="id" placeholder="例：SPOT-0001">
+          </div>
+          <div class="field">
+            <label>グループID <span class="col">B</span></label>
+            <input type="text" name="groupId" placeholder="例：GRP-PARIS">
+          </div>
+          <div class="field">
+            <label>大陸 <span class="col">C</span></label>
+            <select name="continent">
+              <option value="">— 選択 —</option>
+              <option>アジア</option>
+              <option>ヨーロッパ</option>
+              <option>アフリカ</option>
+              <option>北アメリカ</option>
+              <option>南アメリカ</option>
+              <option>オセアニア</option>
+              <option>南極</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="field">
+            <label>国 <span class="col">D</span></label>
+            <input type="text" name="country" placeholder="例：フランス">
+          </div>
+          <div class="field">
+            <label>地区・都市 <span class="col">E</span></label>
+            <input type="text" name="city" placeholder="例：パリ">
+          </div>
+          <div class="field">
+            <label>SV種別 <span class="col">I</span></label>
+            <select name="svType">
+              <option value="">— 選択 —</option>
+              <option>通常ストリートビュー</option>
+              <option>フォトスフィア（ユーザー投稿）</option>
+              <option>360°写真</option>
+              <option>屋内ビュー</option>
+              <option>特殊コレクション</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label>スポット名（日本語） <span class="col">F</span></label>
+            <input type="text" name="nameJa" placeholder="例：エッフェル塔">
+          </div>
+          <div class="field">
+            <label>スポット名（英語） <span class="col">G</span></label>
+            <input type="text" name="nameEn" placeholder="例：Eiffel Tower">
+          </div>
+        </div>
+
+        <p class="divider-label">位置情報</p>
+
+        <!-- Googleマップ解析 -->
+        <div class="map-parse">
+          <label style="margin-bottom:8px;display:block;">
+            🗺️ GoogleマップURL から緯度・経度を取得
+          </label>
+          <div class="row">
+            <input type="url" id="mapUrl" placeholder="GoogleマップのURL（共有リンク / 検索URL）を貼り付け">
+            <button type="button" class="btn btn-blue" id="btnParse">解析</button>
+          </div>
+          <div class="parse-status" id="parseStatus"></div>
+
+          <div class="latlng-row">
+            <div class="field" style="margin:0;">
+              <label>緯度 (Latitude) <span class="col">K</span></label>
+              <input type="text" name="lat" id="lat" placeholder="48.8584">
+            </div>
+            <div class="field" style="margin:0;">
+              <label>経度 (Longitude) <span class="col">L</span></label>
+              <input type="text" name="lng" id="lng" placeholder="2.2945">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label>SVリンク <span class="col">H</span></label>
+            <input type="url" name="svLink" placeholder="ストリートビューの共有URL">
+          </div>
+          <div class="field">
+            <label>SVリンク最終確認日 <span class="col">J</span></label>
+            <input type="date" name="svCheckedDate">
+          </div>
+        </div>
+
+        <p class="divider-label">分類タグ <span style="text-transform:none;font-weight:500;color:var(--muted)">（複数選択可） <span class="col">M</span></span></p>
+        <div class="chips" id="tagChips"></div>
+
+        <p class="divider-label" style="margin-top:18px;">世界遺産登録基準 <span style="text-transform:none;font-weight:500;color:var(--muted)">（i〜x・複数選択可） <span class="col">N</span></span></p>
+        <div class="chips criteria" id="critChips"></div>
+
+        <p class="divider-label" style="margin-top:18px;">画像・公開設定</p>
+        <div class="grid">
+          <div class="field">
+            <label>Wikipedia画像URL <span class="col">O</span></label>
+            <input type="url" name="imageUrl" placeholder="https://upload.wikimedia.org/...">
+          </div>
+          <div class="field">
+            <label>画像クレジット <span class="col">P</span></label>
+            <input type="text" name="imageCredit" placeholder="例：CC BY-SA 4.0 / 撮影者名">
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="field">
+            <label>SV登録状況 <span class="col">Q</span></label>
+            <select name="svStatus">
+              <option value="">— 選択 —</option>
+              <option>登録済</option>
+              <option>未登録</option>
+              <option>確認中</option>
+              <option>SVなし</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>公開ステータス <span class="col">R</span></label>
+            <select name="publishStatus">
+              <option value="">— 選択 —</option>
+              <option>公開</option>
+              <option>非公開</option>
+              <option>下書き</option>
+              <option>保留</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>備考 <span class="col">S</span></label>
+            <input type="text" name="note" placeholder="メモ・補足">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ 解説シート ============ -->
+    <div class="card">
+      <div class="card-head">
+        <span class="num">2</span>
+        <h2>解説シート</h2>
+        <span class="hint">うんちく・解説テキスト</span>
+      </div>
+      <div class="card-body">
+        <p class="section-note">IDはスポットマスターと共有されます（上のIDが自動で紐付きます）。</p>
+
+        <div class="field">
+          <label>基本解説 <span class="col">B</span></label>
+          <textarea name="descBasic" class="lg" placeholder="そのスポットの概要・基本的な説明"></textarea>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label>ピンポイント情報 <span class="col">C</span></label>
+            <textarea name="descPinpoint" placeholder="「ここを見て！」というピンポイントな見どころ"></textarea>
+          </div>
+          <div class="field">
+            <label>語源・由来 <span class="col">D</span></label>
+            <textarea name="descOrigin" placeholder="名前の語源・由来"></textarea>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label>関連する人物 <span class="col">E</span></label>
+            <textarea name="descPeople" placeholder="関わった人物・設計者など"></textarea>
+          </div>
+          <div class="field">
+            <label>人間ドラマ <span class="col">F</span></label>
+            <textarea name="descDrama" placeholder="エピソード・人間模様"></textarea>
+          </div>
+        </div>
+
+        <p class="divider-label">世界遺産</p>
+        <div class="grid">
+          <div class="field">
+            <label>世界遺産検定メモ <span class="col">G</span></label>
+            <textarea name="descHeritageMemo" placeholder="検定2〜3級向けのポイント"></textarea>
+          </div>
+          <div class="field">
+            <label>登録基準の解説 <span class="col">H</span></label>
+            <textarea name="descCriteria" placeholder="なぜその登録基準を満たすのか"></textarea>
+          </div>
+        </div>
+
+        <p class="divider-label">読み物</p>
+        <div class="grid">
+          <div class="field">
+            <label>見どころ・注目ポイント <span class="col">I</span></label>
+            <textarea name="descHighlight" placeholder="注目すべきポイント"></textarea>
+          </div>
+          <div class="field">
+            <label>雑学・うんちく <span class="col">J</span></label>
+            <textarea name="descTrivia" placeholder="思わず話したくなる雑学"></textarea>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>伝説・逸話 <span class="col">K</span></label>
+          <textarea name="descLegend" placeholder="言い伝え・逸話"></textarea>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label>参考文献 <span class="col">L</span></label>
+            <textarea name="descRef" placeholder="出典・参考URL・書籍名"></textarea>
+          </div>
+          <div class="field" style="justify-content:flex-start;">
+            <label>解説品質フラグ <span class="col">M</span></label>
+            <select name="qualityFlag">
+              <option value="">— 選択 —</option>
+              <option>仮（下書き）</option>
+              <option>確認中</option>
+              <option>レビュー済</option>
+              <option>完成</option>
+            </select>
+            <label style="margin-top:12px;">最終更新日 <span class="col">N</span></label>
+            <input type="date" name="lastUpdated">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- JSONプレビュー -->
+  <div class="card preview-wrap" id="previewWrap">
+    <div class="card-head">
+      <span class="num">⤓</span>
+      <h2>出力プレビュー</h2>
+      <span class="hint">スポットマスター + 解説シート の入力内容</span>
+    </div>
+    <div class="card-body">
+      <p class="section-note">
+        <span class="badge">この内容を後でGASに送信／スプレッドシートへ貼り付けできます</span>
+      </p>
+      <pre class="preview" id="previewJson"></pre>
+    </div>
+  </div>
+</main>
+
+<!-- 下部アクションバー -->
+<div class="actionbar">
+  <div class="actionbar-inner">
+    <span class="badge" id="fillBadge">入力項目：0</span>
+    <div class="spacer"></div>
+    <button type="button" class="btn-ghost btn" id="btnPreview">プレビュー切替</button>
+    <button type="button" class="btn-ghost btn" id="btnCopy">JSONコピー</button>
+    <button type="button" class="btn btn-blue" id="btnTsv">TSVコピー</button>
+    <button type="button" class="btn" id="btnSave">保存（一時）</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ========= 定義データ ========= */
+const TAGS = [
+  "宗教建築","城・宮殿","遺跡・古代","近代建築・橋・タワー","博物館・文化施設",
+  "人物・銅像","山・高地","海・湖・川・滝","火山・特殊地形","森・自然公園",
+  "都市景観・広場・街","街道・市場","世界遺産","世界七不思議","映画・ドラマロケ地",
+  "ダークツーリズム","ミステリー・心霊","王族・貴族ゆかりの地","歴史的事件・戦争",
+  "ロマンス・伝説","航路・交通の要衝"
+];
+
+const CRITERIA = [
+  ["i","人類の創造的才能を表す傑作"],
+  ["ii","価値観の交流を示す"],
+  ["iii","文化的伝統・文明の証拠"],
+  ["iv","建築様式・技術の代表例"],
+  ["v","伝統的集落・土地利用の例"],
+  ["vi","出来事・伝統・思想と関連"],
+  ["vii","自然美・類まれな自然現象"],
+  ["viii","地球の歴史の主要段階"],
+  ["ix","生態系・進化の過程"],
+  ["x","生物多様性・絶滅危惧種の生息地"]
+];
+
+/* ========= チップ生成 ========= */
+const tagChips = document.getElementById("tagChips");
+TAGS.forEach((t, i) => {
+  const id = "tag_" + i;
+  const div = document.createElement("div");
+  div.className = "chip";
+  div.innerHTML = `<input type="checkbox" id="${id}" value="${t}" data-tag>
+                   <label for="${id}">${t}</label>`;
+  tagChips.appendChild(div);
+});
+
+const critChips = document.getElementById("critChips");
+CRITERIA.forEach(([sym, desc], i) => {
+  const id = "crit_" + i;
+  const div = document.createElement("div");
+  div.className = "chip";
+  div.title = desc;
+  div.innerHTML = `<input type="checkbox" id="${id}" value="${sym}" data-crit>
+                   <label for="${id}">(${sym})</label>`;
+  critChips.appendChild(div);
+});
+
+/* ========= GoogleマップURL 解析 ========= */
+function parseLatLng(url){
+  if(!url) return null;
+  url = url.trim();
+
+  // 1) !3dLAT!4dLNG    …place のピン位置（最も正確なので最優先）
+  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if(m) return {lat:m[1], lng:m[2], src:"ピン座標"};
+
+  // 2) @lat,lng,zoom   …地図の中心座標
+  m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat:m[1], lng:m[2], src:"@中心座標"};
+
+  // 3) q=lat,lng / query=lat,lng / ll=lat,lng / center=lat,lng / destination=
+  m = url.match(/[?&#](?:q|query|ll|center|destination|daddr|sll|api=1&query)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat:m[1], lng:m[2], src:"クエリ座標"};
+
+  // 4) /search/lat,+lng or %2C
+  m = url.match(/\/search\/(-?\d+\.\d+),\+?(-?\d+\.\d+)/);
+  if(m) return {lat:m[1], lng:m[2], src:"検索座標"};
+
+  // 5) 純粋に "lat, lng" がどこかにある（最後の手段・範囲チェック付き）
+  m = url.match(/(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/);
+  if(m){
+    const la = parseFloat(m[1]), ln = parseFloat(m[2]);
+    if(la>=-90 && la<=90 && ln>=-180 && ln<=180) return {lat:m[1], lng:m[2], src:"座標抽出"};
+  }
+  return null;
+}
+
+const parseStatus = document.getElementById("parseStatus");
+document.getElementById("btnParse").addEventListener("click", () => {
+  const url = document.getElementById("mapUrl").value;
+  const r = parseLatLng(url);
+  if(r){
+    document.getElementById("lat").value = r.lat;
+    document.getElementById("lng").value = r.lng;
+    parseStatus.className = "parse-status ok";
+    parseStatus.textContent = `✓ 取得成功（${r.src}）— 緯度 ${r.lat} / 経度 ${r.lng}`;
+    updateBadge();
+  } else {
+    parseStatus.className = "parse-status err";
+    if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(url)){
+      parseStatus.textContent = "✕ 短縮URL（maps.app.goo.gl）は座標が含まれないため解析できません。リンクを開いて展開後のURLを貼り付けてください。";
+    } else {
+      parseStatus.textContent = "✕ 座標が見つかりませんでした。URL形式をご確認ください。";
+    }
+  }
+});
+
+/* ========= 収集 ========= */
+const form = document.getElementById("spotForm");
+function collect(){
+  const fd = new FormData(form);
+  const data = {};
+  fd.forEach((v,k)=>{ data[k]=v.trim(); });
+  data.tags = [...document.querySelectorAll("[data-tag]:checked")].map(c=>c.value);
+  data.criteria = [...document.querySelectorAll("[data-crit]:checked")].map(c=>c.value);
+  return data;
+}
+
+/* スポットマスター(A〜S) と 解説シート(A〜N) を分けて構造化 */
+function structured(){
+  const d = collect();
+  return {
+    spotMaster: {
+      ID:d.id, グループID:d.groupId, 大陸:d.continent, 国:d.country,
+      地区都市:d.city, スポット名_日:d.nameJa, スポット名_英:d.nameEn,
+      SVリンク:d.svLink, SV種別:d.svType, SVリンク最終確認日:d.svCheckedDate,
+      緯度:d.lat, 経度:d.lng, タグ:d.tags, 世界遺産登録基準:d.criteria,
+      Wikipedia画像URL:d.imageUrl, 画像クレジット:d.imageCredit,
+      SV登録状況:d.svStatus, 公開ステータス:d.publishStatus, 備考:d.note
+    },
+    descSheet: {
+      ID:d.id, 基本解説:d.descBasic, ピンポイント情報:d.descPinpoint,
+      語源由来:d.descOrigin, 関連する人物:d.descPeople, 人間ドラマ:d.descDrama,
+      世界遺産検定メモ:d.descHeritageMemo, 登録基準の解説:d.descCriteria,
+      見どころ:d.descHighlight, 雑学うんちく:d.descTrivia, 伝説逸話:d.descLegend,
+      参考文献:d.descRef, 解説品質フラグ:d.qualityFlag, 最終更新日:d.lastUpdated
+    }
+  };
+}
+
+/* ========= バッジ（入力数） ========= */
+function updateBadge(){
+  const d = collect();
+  let n = 0;
+  Object.values(d).forEach(v=>{
+    if(Array.isArray(v)) n += v.length>0?1:0;
+    else if(v) n++;
+  });
+  document.getElementById("fillBadge").textContent = "入力項目：" + n;
+}
+form.addEventListener("input", updateBadge);
+form.addEventListener("change", updateBadge);
+
+/* ========= プレビュー ========= */
+const previewWrap = document.getElementById("previewWrap");
+const previewJson = document.getElementById("previewJson");
+function refreshPreview(){
+  previewJson.textContent = JSON.stringify(structured(), null, 2);
+}
+document.getElementById("btnPreview").addEventListener("click", () => {
+  previewWrap.classList.toggle("show");
+  if(previewWrap.classList.contains("show")){
+    refreshPreview();
+    previewWrap.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+});
+form.addEventListener("input", ()=>{ if(previewWrap.classList.contains("show")) refreshPreview(); });
+form.addEventListener("change", ()=>{ if(previewWrap.classList.contains("show")) refreshPreview(); });
+
+/* ========= トースト ========= */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* ========= コピー（JSON / TSV） ========= */
+async function copyText(text, label){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(label + "をコピーしました");
+  }catch(e){
+    // フォールバック
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+    toast(label + "をコピーしました");
+  }
+}
+document.getElementById("btnCopy").addEventListener("click", () => {
+  copyText(JSON.stringify(structured(), null, 2), "JSON");
+});
+
+/* スプレッドシート貼り付け用：スポットマスター行 + 解説行 をTSVで */
+document.getElementById("btnTsv").addEventListener("click", () => {
+  const s = structured();
+  const masterRow = [
+    s.spotMaster.ID, s.spotMaster.グループID, s.spotMaster.大陸, s.spotMaster.国,
+    s.spotMaster.地区都市, s.spotMaster.スポット名_日, s.spotMaster.スポット名_英,
+    s.spotMaster.SVリンク, s.spotMaster.SV種別, s.spotMaster.SVリンク最終確認日,
+    s.spotMaster.緯度, s.spotMaster.経度, s.spotMaster.タグ.join("、"),
+    s.spotMaster.世界遺産登録基準.join("、"), s.spotMaster.Wikipedia画像URL,
+    s.spotMaster.画像クレジット, s.spotMaster.SV登録状況, s.spotMaster.公開ステータス,
+    s.spotMaster.備考
+  ].join("\t");
+  const descRow = [
+    s.descSheet.ID, s.descSheet.基本解説, s.descSheet.ピンポイント情報,
+    s.descSheet.語源由来, s.descSheet.関連する人物, s.descSheet.人間ドラマ,
+    s.descSheet.世界遺産検定メモ, s.descSheet.登録基準の解説, s.descSheet.見どころ,
+    s.descSheet.雑学うんちく, s.descSheet.伝説逸話, s.descSheet.参考文献,
+    s.descSheet.解説品質フラグ, s.descSheet.最終更新日
+  ].map(v => String(v).replace(/\t/g," ").replace(/\n/g,"\\n")).join("\t");
+
+  const text = "【スポットマスター行】\n" + masterRow + "\n\n【解説シート行】\n" + descRow;
+  copyText(text, "TSV（タブ区切り）");
+});
+
+/* ========= 一時保存（localStorage） ========= */
+const LS_KEY = "geoexplorer_draft";
+document.getElementById("btnSave").addEventListener("click", () => {
+  const d = collect();
+  localStorage.setItem(LS_KEY, JSON.stringify(d));
+  toast("ブラウザに一時保存しました");
+});
+function restore(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(!raw) return;
+  try{
+    const d = JSON.parse(raw);
+    Object.entries(d).forEach(([k,v])=>{
+      if(k==="tags" || k==="criteria") return;
+      const el = form.elements[k];
+      if(el) el.value = v;
+    });
+    (d.tags||[]).forEach(t=>{
+      const c=[...document.querySelectorAll("[data-tag]")].find(x=>x.value===t); if(c)c.checked=true;
+    });
+    (d.criteria||[]).forEach(s=>{
+      const c=[...document.querySelectorAll("[data-crit]")].find(x=>x.value===s); if(c)c.checked=true;
+    });
+    updateBadge();
+  }catch(e){}
+}
+
+/* ========= クリア ========= */
+document.getElementById("btnReset").addEventListener("click", () => {
+  if(!confirm("入力内容をすべてクリアします。よろしいですか？")) return;
+  form.reset();
+  document.querySelectorAll("[data-tag]:checked,[data-crit]:checked").forEach(c=>c.checked=false);
+  parseStatus.textContent="";
+  updateBadge();
+  if(previewWrap.classList.contains("show")) refreshPreview();
+  toast("クリアしました");
+});
+
+/* ========= サンプル入力 ========= */
+document.getElementById("btnSample").addEventListener("click", () => {
+  const set = (n,v)=>{ if(form.elements[n]) form.elements[n].value=v; };
+  set("id","SPOT-0001"); set("groupId","GRP-PARIS"); set("continent","ヨーロッパ");
+  set("country","フランス"); set("city","パリ"); set("nameJa","エッフェル塔");
+  set("nameEn","Eiffel Tower"); set("svType","通常ストリートビュー");
+  set("lat","48.8584"); set("lng","2.2945");
+  set("svLink","https://www.google.com/maps/@48.8584,2.2945,3a");
+  set("svCheckedDate","2026-06-07");
+  set("imageUrl","https://upload.wikimedia.org/wikipedia/commons/8/85/Tour_Eiffel.jpg");
+  set("imageCredit","CC BY-SA 4.0 / Wikimedia");
+  set("svStatus","登録済"); set("publishStatus","公開"); set("note","パリの象徴");
+  set("descBasic","1889年のパリ万博のために建設された高さ約330mの鉄塔。");
+  set("descPinpoint","2階展望台から見えるシャン・ド・マルス公園の対称美に注目。");
+  set("descOrigin","設計者ギュスターヴ・エッフェルの名にちなむ。");
+  set("descPeople","ギュスターヴ・エッフェル");
+  set("descTrivia","当初は20年で解体予定だったが、無線アンテナとして有用だったため存続した。");
+  set("qualityFlag","完成"); set("lastUpdated","2026-06-07");
+  // タグ：近代建築・橋・タワー / 都市景観・広場・街
+  ["近代建築・橋・タワー","都市景観・広場・街"].forEach(t=>{
+    const c=[...document.querySelectorAll("[data-tag]")].find(x=>x.value===t); if(c)c.checked=true;
+  });
+  updateBadge();
+  if(previewWrap.classList.contains("show")) refreshPreview();
+  toast("サンプルを入力しました");
+});
+
+/* 初期化 */
+restore();
+updateBadge();
+</script>
+</body>
+</html>
